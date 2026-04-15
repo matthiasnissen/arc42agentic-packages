@@ -43,45 +43,47 @@ jobs:
           SOURCE_DIR="."
           TARGET_DIR="target"
           
-          echo "🔄 Transforming arc42 agents to APM packages..."
+          echo "🔄 Transforming arc42 agents to proper APM format..."
           
-          # Create package structures
-          mkdir -p "$TARGET_DIR/packages/arc42agenticreview/.agents/skills"
-          mkdir -p "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills"
+          # Create proper APM structure: apm.yml on root, everything else in .apm/
+          mkdir -p "$TARGET_DIR/packages/arc42agenticreview/.apm/agents"
+          mkdir -p "$TARGET_DIR/packages/arc42agenticreview/.apm/skills"
+          mkdir -p "$TARGET_DIR/packages/arc42agenticwrite/.apm/agents"
+          mkdir -p "$TARGET_DIR/packages/arc42agenticwrite/.apm/skills"
           
           # === REVIEW PACKAGE ===
           echo "📦 Setting up arc42agenticreview package..."
           
-          # Copy review agents
-          cp "$SOURCE_DIR/.agents/arc42-review.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
-          cp "$SOURCE_DIR/.agents/arc42-review-branch.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
-          cp "$SOURCE_DIR/.agents/arc42-review-conflict.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
-          cp "$SOURCE_DIR/.agents/arc42-review-s"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
-          cp "$SOURCE_DIR/.agents/arc42-review-conflict-"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          # Copy review agents to .apm/agents/
+          cp "$SOURCE_DIR/.agents/arc42-review.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.apm/agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-branch.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.apm/agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-conflict.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.apm/agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-s"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.apm/agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-conflict-"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.apm/agents/" || true
           
-          # Copy skills for review package
-          cp -r "$SOURCE_DIR/.agents/skills/arc42-doc-layout" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
-          cp -r "$SOURCE_DIR/.agents/skills/arc42-review-format" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
-          cp -r "$SOURCE_DIR/.agents/skills/arc42-orchestrator-format" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
+          # Copy skills to .apm/skills/
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-doc-layout" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-review-format" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-orchestrator-format" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
           
-          # Copy arc42 documentation
-          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticreview/" || true
+          # Copy arc42 documentation (optional)
+          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticreview/.apm/" 2>/dev/null || true
           
           # === WRITE PACKAGE ===
           echo "📦 Setting up arc42agenticwrite package..."
           
-          # Copy write agents
-          cp "$SOURCE_DIR/.agents/arc42-write.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.agents/" || true
-          cp "$SOURCE_DIR/.agents/arc42-write-from-code.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.agents/" || true
+          # Copy write agents to .apm/agents/
+          cp "$SOURCE_DIR/.agents/arc42-write.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.apm/agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-write-from-code.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.apm/agents/" || true
           
-          # Copy skills for write package
-          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-doc-layout" "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills/" || true
-          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-s"* "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills/" || true
+          # Copy skills to .apm/skills/
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-doc-layout" "$TARGET_DIR/packages/arc42agenticwrite/.apm/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-s"* "$TARGET_DIR/packages/arc42agenticwrite/.apm/skills/" || true
           
-          # Copy arc42 documentation
-          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticwrite/" || true
+          # Copy arc42 documentation (optional)
+          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticwrite/.apm/" 2>/dev/null || true
           
-          echo "✅ Packages transformed"
+          echo "✅ Packages transformed to proper APM format"
 
       - name: Calculate new versions per package
         id: calc-versions
@@ -105,7 +107,7 @@ jobs:
             # Get the last tag for THIS package
             LAST_TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
             
-            # Read current version from apm.yml
+            # Read current version from apm.yml (on root level)
             if [ -f "$PKG_DIR/apm.yml" ]; then
               CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yml" | sed 's/version: //' | tr -d ' ')
             else
@@ -227,11 +229,11 @@ jobs:
             
             echo "📝 Updating $package: $CURRENT_VERSION → $NEW_VERSION"
             
-            # Update apm.yml
+            # Update apm.yml (on root level)
             sed -i "s/^version: .*/version: $NEW_VERSION/" "$PKG_DIR/apm.yml"
             
-            # Generate changelog
-            CHANGELOG_FILE="$PKG_DIR/CHANGELOG.md"
+            # Generate changelog in .apm/
+            CHANGELOG_FILE="$PKG_DIR/.apm/CHANGELOG.md"
             {
               echo "# Changelog for $package"
               echo ""
@@ -262,7 +264,7 @@ jobs:
           git config user.name "${{ env.BOT_NAME }}"
           git config user.email "${{ env.BOT_EMAIL }}"
           
-          git add packages/*/apm.yml packages/*/CHANGELOG.md
+          git add packages/*/apm.yml packages/*/.apm/CHANGELOG.md
           
           if [ -z "$(git status --porcelain)" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -307,9 +309,13 @@ jobs:
               NEW_VERSION=$(grep "^version:" "packages/$package/apm.yml" | sed 's/version: //' | tr -d ' ')
               TAG="$package/v$NEW_VERSION"
               
-              echo "Creating tag: $TAG"
-              
-              git tag -a "$TAG" $COMMIT_SHA -m "Release $package v$NEW_VERSION"
+              # Check if tag already exists
+              if git rev-parse "$TAG" >/dev/null 2>&1; then
+                echo "⏭️  Tag $TAG already exists, skipping"
+              else
+                echo "Creating tag: $TAG"
+                git tag -a "$TAG" $COMMIT_SHA -m "Release $package v$NEW_VERSION"
+              fi
             fi
           done
 

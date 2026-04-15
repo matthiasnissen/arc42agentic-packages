@@ -1,6 +1,6 @@
 
 name: arc42agenticreview
-version: 0.1.2
+version: 0.1.0
 description: "Arc42 Review Agents - Agentic workflow for reviewing arc42 architecture documentation"
 files: "."
 metadata:
