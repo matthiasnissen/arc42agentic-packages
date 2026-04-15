@@ -1,13 +1,13 @@
 # Changelog for arc42agenticreview
 
-## [0.1.1] - 2026-04-15
+## [0.1.2] - 2026-04-15
 
 ### Added
 
 ### Fixed
+- da50d93 - fix: correct author casing and update description wording in apm.yml files (Matthias Nissen, 2026-04-15)
 
 ### Changed
-- f3169f6 - Initial APM packages structure with all agents and skills (Matthias Nissen, 2026-04-15)
 
 Synced from: [arc42agentic](https://github.com/matthiasnissen/arc42agentic)
 
