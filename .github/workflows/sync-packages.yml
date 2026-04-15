@@ -1,0 +1,345 @@
+name: Sync Arc42 Agentric Packages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:
+
+env:
+  BOT_NAME: "Arc42 Sync Bot"
+  BOT_EMAIL: "arc42-sync@bot.local"
+
+jobs:
+  sync-and-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source monorepo
+        uses: actions/checkout@v3
+        with:
+          repository: matthiasnissen/arc42agentic
+          fetch-depth: 0
+
+      - name: Checkout target monorepo
+        uses: actions/checkout@v3
+        with:
+          path: target
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Transform and distribute packages
+        run: |
+          set -e
+          
+          SOURCE_DIR="."
+          TARGET_DIR="target"
+          
+          echo "🔄 Transforming arc42 agents to APM packages..."
+          
+          # Create package structures
+          mkdir -p "$TARGET_DIR/packages/arc42agenticreview/.agents/skills"
+          mkdir -p "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills"
+          
+          # === REVIEW PACKAGE ===
+          echo "📦 Setting up arc42agenticreview package..."
+          
+          # Copy review agents
+          cp "$SOURCE_DIR/.agents/arc42-review.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-branch.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-conflict.agent.md" "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-s"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-review-conflict-"*.agent.md "$TARGET_DIR/packages/arc42agenticreview/.agents/" || true
+          
+          # Copy skills for review package
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-doc-layout" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-review-format" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-orchestrator-format" "$TARGET_DIR/packages/arc42agenticreview/.agents/skills/" || true
+          
+          # Copy arc42 documentation
+          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticreview/" || true
+          
+          # === WRITE PACKAGE ===
+          echo "📦 Setting up arc42agenticwrite package..."
+          
+          # Copy write agents
+          cp "$SOURCE_DIR/.agents/arc42-write.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.agents/" || true
+          cp "$SOURCE_DIR/.agents/arc42-write-from-code.agent.md" "$TARGET_DIR/packages/arc42agenticwrite/.agents/" || true
+          
+          # Copy skills for write package
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-doc-layout" "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills/" || true
+          cp -r "$SOURCE_DIR/.agents/skills/arc42-write-s"* "$TARGET_DIR/packages/arc42agenticwrite/.agents/skills/" || true
+          
+          # Copy arc42 documentation
+          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticwrite/" || true
+          
+          echo "✅ Packages transformed"
+
+      - name: Calculate new versions per package
+        id: calc-versions
+        run: |
+          set -e
+          
+          TARGET_DIR="target"
+          cd $TARGET_DIR
+          
+          git config user.name "${{ env.BOT_NAME }}"
+          git config user.email "${{ env.BOT_EMAIL }}"
+          
+          PACKAGES=$(ls -1 packages/)
+          VERSIONS_JSON='{}'
+          
+          echo "📊 Analyzing commits per package..."
+          
+          for package in $PACKAGES; do
+            PKG_DIR="packages/$package"
+            
+            # Get the last tag for THIS package
+            LAST_TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
+            
+            # Read current version from apm.yaml
+            if [ -f "$PKG_DIR/apm.yaml" ]; then
+              CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            else
+              CURRENT_VERSION="0.0.0"
+            fi
+            
+            echo "Package: $package"
+            echo "  Current version: $CURRENT_VERSION"
+            echo "  Last tag: $LAST_TAG"
+            
+            # Get commits for THIS package since last tag
+            if [ -z "$LAST_TAG" ]; then
+              COMMITS=$(git log --all --pretty=format:"%h %s" -- "$PKG_DIR" | head -20)
+              INITIAL_BUMP="minor"
+            else
+              COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%h %s" -- "$PKG_DIR")
+              INITIAL_BUMP="patch"
+            fi
+            
+            if [ -z "$COMMITS" ]; then
+              echo "  No changes"
+              continue
+            fi
+            
+            # Determine bump from commit messages
+            BUMP=$INITIAL_BUMP
+            
+            while IFS= read -r line; do
+              HASH=$(echo "$line" | cut -d' ' -f1)
+              MSG=$(echo "$line" | cut -d' ' -f2-)
+              
+              FULL_MSG=$(git log -1 --format="%B" "$HASH" 2>/dev/null || echo "")
+              
+              if echo "$FULL_MSG" | grep -iE "^BREAKING CHANGE:" > /dev/null; then
+                BUMP="major"
+              elif echo "$MSG" | grep -E "^feat(\(.*\))?!:" > /dev/null; then
+                BUMP="major"
+              elif echo "$MSG" | grep -E "^feat(\(.*\))?:" > /dev/null; then
+                if [ "$BUMP" != "major" ]; then
+                  BUMP="minor"
+                fi
+              fi
+            done <<< "$COMMITS"
+            
+            # Parse version
+            MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+            MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+            PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+            
+            # Calculate new version
+            case $BUMP in
+              major)
+                NEW_VERSION="$((MAJOR+1)).0.0"
+                ;;
+              minor)
+                NEW_VERSION="$MAJOR.$((MINOR+1)).0"
+                ;;
+              *)
+                NEW_VERSION="$MAJOR.$MINOR.$((PATCH+1))"
+                ;;
+            esac
+            
+            echo "  Version bump: $BUMP → $NEW_VERSION"
+            
+            VERSIONS_JSON=$(echo "$VERSIONS_JSON" | jq ". += {\"$package\": \"$NEW_VERSION\"}" 2>/dev/null || echo "$VERSIONS_JSON")
+          done
+          
+          echo "versions=$(echo $VERSIONS_JSON | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Update apm.yaml and generate changelogs
+        run: |
+          set -e
+          
+          TARGET_DIR="target"
+          cd $TARGET_DIR
+          
+          PACKAGES=$(ls -1 packages/)
+          
+          for package in $PACKAGES; do
+            PKG_DIR="packages/$package"
+            LAST_TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
+            CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            
+            if [ -z "$LAST_TAG" ]; then
+              COMMITS=$(git log --all --pretty=format:"%h - %s (%an, %ad)" --date=short -- "$PKG_DIR" | head -20)
+            else
+              COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%h - %s (%an, %ad)" --date=short -- "$PKG_DIR")
+            fi
+            
+            if [ -z "$COMMITS" ]; then
+              continue
+            fi
+            
+            # Calculate new version
+            BUMP="patch"
+            FULL_MSG=$(git log "${LAST_TAG}..HEAD" --all --format="%B" -- "$PKG_DIR" 2>/dev/null || echo "")
+            
+            if echo "$FULL_MSG" | grep -iE "^BREAKING CHANGE:" > /dev/null; then
+              BUMP="major"
+            elif echo "$FULL_MSG" | grep -E "^feat" > /dev/null; then
+              BUMP="minor"
+            fi
+            
+            MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+            MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+            PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+            
+            case $BUMP in
+              major)
+                NEW_VERSION="$((MAJOR+1)).0.0"
+                ;;
+              minor)
+                NEW_VERSION="$MAJOR.$((MINOR+1)).0"
+                ;;
+              *)
+                NEW_VERSION="$MAJOR.$MINOR.$((PATCH+1))"
+                ;;
+            esac
+            
+            echo "📝 Updating $package: $CURRENT_VERSION → $NEW_VERSION"
+            
+            # Update apm.yaml
+            sed -i "s/^version: .*/version: $NEW_VERSION/" "$PKG_DIR/apm.yaml"
+            
+            # Generate changelog
+            CHANGELOG_FILE="$PKG_DIR/CHANGELOG.md"
+            {
+              echo "# Changelog for $package"
+              echo ""
+              echo "## [$NEW_VERSION] - $(date -u +'%Y-%m-%d')"
+              echo ""
+              echo "### Added"
+              echo "$COMMITS" | grep -E "feat:" | sed 's/^/- /' || echo "- No new features"
+              echo ""
+              echo "### Fixed"
+              echo "$COMMITS" | grep -E "fix:" | sed 's/^/- /' || echo "- No fixes"
+              echo ""
+              echo "### Changed"
+              echo "$COMMITS" | grep -vE "(feat:|fix:)" | sed 's/^/- /' || echo "- No changes"
+              echo ""
+              echo "Synced from: [arc42agentic](https://github.com/matthiasnissen/arc42agentic)"
+              echo ""
+              echo "---"
+            } > "$CHANGELOG_FILE"
+          done
+
+      - name: Commit version updates
+        id: commit
+        run: |
+          set -e
+          
+          cd target
+          
+          git config user.name "${{ env.BOT_NAME }}"
+          git config user.email "${{ env.BOT_EMAIL }}"
+          
+          git add packages/*/apm.yaml packages/*/CHANGELOG.md
+          
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+          
+          PACKAGES=$(ls -1 packages/)
+          
+          COMMIT_MSG="chore: sync and version packages from arc42agentic"
+          
+          for package in $PACKAGES; do
+            if git diff --cached --name-only | grep -q "packages/$package/apm.yaml"; then
+              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yaml" | sed 's/version: //' | tr -d ' ')
+              COMMIT_MSG="$COMMIT_MSG"$'\n'"- $package: v$NEW_VERSION"
+            fi
+          done
+          
+          git commit -m "$COMMIT_MSG"
+          
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Create version tags
+        if: steps.commit.outputs.has_changes == 'true'
+        run: |
+          set -e
+          
+          cd target
+          
+          git config user.name "${{ env.BOT_NAME }}"
+          git config user.email "${{ env.BOT_EMAIL }}"
+          
+          PACKAGES=$(ls -1 packages/)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          
+          echo "🏷️  Creating version tags..."
+          
+          for package in $PACKAGES; do
+            if [ -f "packages/$package/apm.yaml" ]; then
+              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yaml" | sed 's/version: //' | tr -d ' ')
+              TAG="$package/v$NEW_VERSION"
+              
+              echo "Creating tag: $TAG"
+              
+              git tag -a "$TAG" $COMMIT_SHA -m "Release $package v$NEW_VERSION"
+            fi
+          done
+
+      - name: Push changes and tags
+        if: steps.commit.outputs.has_changes == 'true'
+        run: |
+          cd target
+          git push origin main
+          git push origin --tags
+          echo "✅ Pushed to remote"
+
+      - name: Verify tag integrity
+        run: |
+          set -e
+          
+          cd target
+          
+          echo "🔍 Verifying tag integrity..."
+          
+          PACKAGES=$(ls -1 packages/)
+          
+          for package in $PACKAGES; do
+            TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
+            
+            if [ -n "$TAG" ]; then
+              TAG_VERSION=$(echo "$TAG" | sed "s/$package\/v//")
+              YAML_VERSION=$(git show "$TAG:packages/$package/apm.yaml" 2>/dev/null | grep "^version:" | sed 's/version: //' | tr -d ' ' || echo "NOT_FOUND")
+              
+              echo "  $package: Tag=$TAG_VERSION, apm.yaml=$YAML_VERSION"
+              
+              if [ "$TAG_VERSION" = "$YAML_VERSION" ]; then
+                echo "    ✅ Match"
+              else
+                echo "    ⚠️  Mismatch (may be normal on first run)"
+              fi
+            fi
+          done
