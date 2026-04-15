@@ -101,9 +101,9 @@ jobs:
             # Get the last tag for THIS package
             LAST_TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
             
-            # Read current version from apm.yaml
-            if [ -f "$PKG_DIR/apm.yaml" ]; then
-              CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            # Read current version from apm.yml
+            if [ -f "$PKG_DIR/apm.yml" ]; then
+              CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yml" | sed 's/version: //' | tr -d ' ')
             else
               CURRENT_VERSION="0.0.0"
             fi
@@ -171,7 +171,7 @@ jobs:
           
           echo "versions=$(echo $VERSIONS_JSON | jq -c .)" >> $GITHUB_OUTPUT
 
-      - name: Update apm.yaml and generate changelogs
+      - name: Update apm.yml and generate changelogs
         run: |
           set -e
           
@@ -183,7 +183,7 @@ jobs:
           for package in $PACKAGES; do
             PKG_DIR="packages/$package"
             LAST_TAG=$(git describe --tags --match "$package/v*" --abbrev=0 2>/dev/null || echo "")
-            CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yml" | sed 's/version: //' | tr -d ' ')
             
             if [ -z "$LAST_TAG" ]; then
               COMMITS=$(git log --all --pretty=format:"%h - %s (%an, %ad)" --date=short -- "$PKG_DIR" | head -20)
@@ -223,8 +223,8 @@ jobs:
             
             echo "📝 Updating $package: $CURRENT_VERSION → $NEW_VERSION"
             
-            # Update apm.yaml
-            sed -i "s/^version: .*/version: $NEW_VERSION/" "$PKG_DIR/apm.yaml"
+            # Update apm.yml
+            sed -i "s/^version: .*/version: $NEW_VERSION/" "$PKG_DIR/apm.yml"
             
             # Generate changelog
             CHANGELOG_FILE="$PKG_DIR/CHANGELOG.md"
@@ -258,7 +258,7 @@ jobs:
           git config user.name "${{ env.BOT_NAME }}"
           git config user.email "${{ env.BOT_EMAIL }}"
           
-          git add packages/*/apm.yaml packages/*/CHANGELOG.md
+          git add packages/*/apm.yml packages/*/CHANGELOG.md
           
           if [ -z "$(git status --porcelain)" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -272,8 +272,8 @@ jobs:
           COMMIT_MSG="chore: sync and version packages from arc42agentic"
           
           for package in $PACKAGES; do
-            if git diff --cached --name-only | grep -q "packages/$package/apm.yaml"; then
-              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            if git diff --cached --name-only | grep -q "packages/$package/apm.yml"; then
+              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yml" | sed 's/version: //' | tr -d ' ')
               COMMIT_MSG="$COMMIT_MSG"$'\n'"- $package: v$NEW_VERSION"
             fi
           done
@@ -299,8 +299,8 @@ jobs:
           echo "🏷️  Creating version tags..."
           
           for package in $PACKAGES; do
-            if [ -f "packages/$package/apm.yaml" ]; then
-              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yaml" | sed 's/version: //' | tr -d ' ')
+            if [ -f "packages/$package/apm.yml" ]; then
+              NEW_VERSION=$(grep "^version:" "packages/$package/apm.yml" | sed 's/version: //' | tr -d ' ')
               TAG="$package/v$NEW_VERSION"
               
               echo "Creating tag: $TAG"
@@ -332,9 +332,9 @@ jobs:
             
             if [ -n "$TAG" ]; then
               TAG_VERSION=$(echo "$TAG" | sed "s/$package\/v//")
-              YAML_VERSION=$(git show "$TAG:packages/$package/apm.yaml" 2>/dev/null | grep "^version:" | sed 's/version: //' | tr -d ' ' || echo "NOT_FOUND")
+              YAML_VERSION=$(git show "$TAG:packages/$package/apm.yml" 2>/dev/null | grep "^version:" | sed 's/version: //' | tr -d ' ' || echo "NOT_FOUND")
               
-              echo "  $package: Tag=$TAG_VERSION, apm.yaml=$YAML_VERSION"
+              echo "  $package: Tag=$TAG_VERSION, apm.yml=$YAML_VERSION"
               
               if [ "$TAG_VERSION" = "$YAML_VERSION" ]; then
                 echo "    ✅ Match"
