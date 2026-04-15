@@ -1,10 +1,10 @@
 
 name: arc42agenticreview
 version: 0.1.1
-description: "Arc42 Review Agents - Agentric workflow for reviewing arc42 architecture documentation"
+description: "Arc42 Review Agents - Agentic workflow for reviewing arc42 architecture documentation"
 files: "."
 metadata:
-  author: "matthiasnissen"
+  author: "Matthias Nissen"
   repository: "arc42agentic-packages"
   synced_from: "arc42agentic"
   purpose: "Review and validate arc42 architecture documentation across all sections"
