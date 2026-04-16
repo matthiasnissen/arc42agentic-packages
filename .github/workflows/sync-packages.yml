@@ -1,4 +1,4 @@
-name: Sync Arc42 Agentric Packages
+name: Sync Arc42 Agentic Packages
 
 on:
   push:
@@ -19,20 +19,20 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout source monorepo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: matthiasnissen/arc42agentic
           fetch-depth: 0
 
       - name: Checkout target monorepo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: target
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
