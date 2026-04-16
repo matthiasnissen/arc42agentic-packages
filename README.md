@@ -1,6 +1,6 @@
-# arc42 Agentric Packages
+# arc42 Agentic Packages
 
-APM packages for arc42 agentric workflows - Review and Write agents for architecture documentation.
+APM packages for arc42 agentic workflows - Review and Write agents for architecture documentation.
 
 ## Packages
 

@@ -65,10 +65,7 @@ jobs:
           cp -r "$SOURCE_DIR/.agents/skills/arc42-doc-layout" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
           cp -r "$SOURCE_DIR/.agents/skills/arc42-review-format" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
           cp -r "$SOURCE_DIR/.agents/skills/arc42-orchestrator-format" "$TARGET_DIR/packages/arc42agenticreview/.apm/skills/" || true
-          
-          # Copy arc42 documentation (optional)
-          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticreview/.apm/" 2>/dev/null || true
-          
+
           # === WRITE PACKAGE ===
           echo "📦 Setting up arc42agenticwrite package..."
           
@@ -79,9 +76,6 @@ jobs:
           # Copy skills to .apm/skills/
           cp -r "$SOURCE_DIR/.agents/skills/arc42-write-doc-layout" "$TARGET_DIR/packages/arc42agenticwrite/.apm/skills/" || true
           cp -r "$SOURCE_DIR/.agents/skills/arc42-write-s"* "$TARGET_DIR/packages/arc42agenticwrite/.apm/skills/" || true
-          
-          # Copy arc42 documentation (optional)
-          cp -r "$SOURCE_DIR/arc-doc" "$TARGET_DIR/packages/arc42agenticwrite/.apm/" 2>/dev/null || true
           
           echo "✅ Packages transformed to proper APM format"
 
