@@ -1,0 +1,15 @@
+{
+  "name": "arc42 Agentic Packages",
+  "plugins": [
+    {
+      "name": "arc42agenticreview",
+      "description": "Agentic workflow for reviewing arc42 architecture documentation",
+      "source": "./arc42agenticreview"
+    },
+    {
+      "name": "arc42agenticwrite",
+      "description": "Agentic workflow for writing and updating arc42 architecture documentation",
+      "source": "./arc42agenticwrite"
+    }
+  ]
+}
