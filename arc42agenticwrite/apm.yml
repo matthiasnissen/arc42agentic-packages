@@ -1,5 +1,5 @@
 name: arc42agenticwrite
-version: 0.9.0
+version: 0.9.1
 description: "Arc42 Write Agents - Agentic workflow for writing and updating arc42 architecture documentation"
 files: "."
 license: "CC-BY-SA-4.0"
