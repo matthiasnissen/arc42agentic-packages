@@ -112,12 +112,13 @@ jobs:
             echo "  Current version: $CURRENT_VERSION"
             echo "  Last tag: $LAST_TAG"
             
-            # Get commits for THIS package since last tag
+            # Get commits from SOURCE repo since last tag date
             if [ -z "$LAST_TAG" ]; then
-              COMMITS=$(git log --all --pretty=format:"%h %s" -- "$PKG_DIR" | head -20)
+              COMMITS=$(git -C .. log --all --pretty=format:"%h %s" | head -20)
               INITIAL_BUMP="minor"
             else
-              COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%h %s" -- "$PKG_DIR")
+              LAST_TAG_DATE=$(git log -1 --format="%cI" "$LAST_TAG")
+              COMMITS=$(git -C .. log --after="$LAST_TAG_DATE" --pretty=format:"%h %s")
               INITIAL_BUMP="patch"
             fi
             
@@ -126,14 +127,14 @@ jobs:
               continue
             fi
             
-            # Determine bump from commit messages
+            # Determine bump from SOURCE repo commit messages
             BUMP=$INITIAL_BUMP
             
             while IFS= read -r line; do
               HASH=$(echo "$line" | cut -d' ' -f1)
               MSG=$(echo "$line" | cut -d' ' -f2-)
               
-              FULL_MSG=$(git log -1 --format="%B" "$HASH" 2>/dev/null || echo "")
+              FULL_MSG=$(git -C .. log -1 --format="%B" "$HASH" 2>/dev/null || echo "")
               
               if echo "$FULL_MSG" | grep -iE "^BREAKING CHANGE:" > /dev/null; then
                 BUMP="major"
@@ -186,18 +187,23 @@ jobs:
             CURRENT_VERSION=$(grep "^version:" "$PKG_DIR/apm.yml" | sed 's/version: //' | tr -d ' ')
             
             if [ -z "$LAST_TAG" ]; then
-              COMMITS=$(git log --all --pretty=format:"%h - %s (%an, %ad)" --date=short -- "$PKG_DIR" | head -20)
+              COMMITS=$(git -C .. log --all --pretty=format:"%h - %s (%an, %ad)" --date=short | head -20)
             else
-              COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%h - %s (%an, %ad)" --date=short -- "$PKG_DIR")
+              LAST_TAG_DATE=$(git log -1 --format="%cI" "$LAST_TAG")
+              COMMITS=$(git -C .. log --after="$LAST_TAG_DATE" --pretty=format:"%h - %s (%an, %ad)" --date=short)
             fi
             
             if [ -z "$COMMITS" ]; then
               continue
             fi
             
-            # Calculate new version
+            # Calculate new version from SOURCE repo commit messages
             BUMP="patch"
-            FULL_MSG=$(git log "${LAST_TAG}..HEAD" --all --format="%B" -- "$PKG_DIR" 2>/dev/null || echo "")
+            if [ -z "$LAST_TAG" ]; then
+              FULL_MSG=$(git -C .. log --all --format="%B" 2>/dev/null || echo "")
+            else
+              FULL_MSG=$(git -C .. log --after="$LAST_TAG_DATE" --format="%B" 2>/dev/null || echo "")
+            fi
             
             if echo "$FULL_MSG" | grep -iE "^BREAKING CHANGE:" > /dev/null; then
               BUMP="major"
