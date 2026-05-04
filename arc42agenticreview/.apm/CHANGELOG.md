@@ -1,14 +1,15 @@
 # Changelog for arc42agenticreview
 
-## [0.9.2] - 2026-04-20
+## [0.10.0] - 2026-05-04
 
 ### Added
 
 ### Fixed
 
 ### Changed
-- fe19ea4 - Merge branch 'main' of https://github.com/matthiasnissen/arc42agentic-packages (Matthias Nissen, 2026-04-20)
-- acf67b4 - chore: add license information to apm.yml files and create marketplace.json for plugin management (Matthias Nissen, 2026-04-20)
+- cd53942 - feat!: release first major version 1.0 (matthiasnissen, 2026-05-04)
+- 3bb5f3d - feat!: release first major version 1.0 (matthiasnissen, 2026-05-04)
+- 0b16b93 - Remove download_hsc_arc42.py script as part of project cleanup (matthiasnissen, 2026-05-04)
 
 Synced from: [arc42agentic](https://github.com/matthiasnissen/arc42agentic)
 
