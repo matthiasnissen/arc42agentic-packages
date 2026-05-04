@@ -197,35 +197,12 @@ jobs:
               continue
             fi
             
-            # Calculate new version from SOURCE repo commit messages
-            BUMP="patch"
-            if [ -z "$LAST_TAG" ]; then
-              FULL_MSG=$(git -C .. log --all --format="%B" 2>/dev/null || echo "")
-            else
-              FULL_MSG=$(git -C .. log --after="$LAST_TAG_DATE" --format="%B" 2>/dev/null || echo "")
+            # Reuse version already calculated by calc-versions step
+            NEW_VERSION=$(echo '${{ steps.calc-versions.outputs.versions }}' | jq -r ".\"$package\"")
+            if [ -z "$NEW_VERSION" ] || [ "$NEW_VERSION" = "null" ]; then
+              echo "  ⚠️  No version calculated for $package, skipping"
+              continue
             fi
-            
-            if echo "$FULL_MSG" | grep -iE "^BREAKING CHANGE:" > /dev/null; then
-              BUMP="major"
-            elif echo "$FULL_MSG" | grep -E "^feat" > /dev/null; then
-              BUMP="minor"
-            fi
-            
-            MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
-            MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
-            PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
-            
-            case $BUMP in
-              major)
-                NEW_VERSION="$((MAJOR+1)).0.0"
-                ;;
-              minor)
-                NEW_VERSION="$MAJOR.$((MINOR+1)).0"
-                ;;
-              *)
-                NEW_VERSION="$MAJOR.$MINOR.$((PATCH+1))"
-                ;;
-            esac
             
             echo "📝 Updating $package: $CURRENT_VERSION → $NEW_VERSION"
             
