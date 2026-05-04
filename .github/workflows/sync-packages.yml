@@ -258,7 +258,7 @@ jobs:
           git config user.name "${{ env.BOT_NAME }}"
           git config user.email "${{ env.BOT_EMAIL }}"
           
-          git add */apm.yml */.apm/CHANGELOG.md
+          git add .
           
           if [ -z "$(git status --porcelain)" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
