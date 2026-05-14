@@ -1,6 +1,6 @@
 
 name: arc42agenticreview
-version: 1.0.0
+version: 1.0.1
 description: "Arc42 Review Agents - Agentic workflow for reviewing arc42 architecture documentation"
 files: "."
 license: "CC-BY-SA-4.0"
